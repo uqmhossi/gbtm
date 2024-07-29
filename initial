@@ -163,3 +163,55 @@ display "Best solution BIC(N): " `solutionn'
 display "Best solution BIC(p): " `solutionp'
 display "Best solution AIC: " `solution_aic'
 
+traj, var( compliance_level_num*) indep(t_*) model(logit) order(2 1 3)
+
+trajplot 
+
+program summary_table_procTraj
+    preserve
+    *updating code to drop missing assigned observations
+    drop if missing(_traj_Group)
+    *now lets look at the average posterior probability
+	gen Mp = 0
+	foreach i of varlist _traj_ProbG* {
+	    replace Mp = `i' if `i' > Mp 
+	}
+    sort _traj_Group
+    *and the odds of correct classification
+    by _traj_Group: gen countG = _N
+    by _traj_Group: egen groupAPP = mean(Mp)
+    by _traj_Group: gen counter = _n
+    gen n = groupAPP/(1 - groupAPP)
+    gen p = countG/ _N
+    gen d = p/(1-p)
+    gen occ = n/d
+    *Estimated proportion for each group
+    scalar c = 0
+    gen TotProb = 0
+    foreach i of varlist _traj_ProbG* {
+       scalar c = c + 1
+       quietly summarize `i'
+       replace TotProb = r(sum)/ _N if _traj_Group == c 
+    }
+	gen d_pp = TotProb/(1 - TotProb)
+	gen occ_pp = n/d_pp
+    *This displays the group number [_traj_~p], 
+    *the count per group (based on the max post prob), [countG]
+    *the average posterior probability for each group, [groupAPP]
+    *the odds of correct classification (based on the max post prob group assignment), [occ] 
+    *the odds of correct classification (based on the weighted post. prob), [occ_pp]
+    *and the observed probability of groups versus the probability [p]
+    *based on the posterior probabilities [TotProb]
+    list _traj_Group countG groupAPP occ occ_pp p TotProb if counter == 1
+    restore
+end
+
+summary_table_procTraj
+
+preserve
+
+reshape long compliance_level_num t_, i( hicid )
+
+gen compliance_level_num_jit = compliance_level_num + ( 0.2*runiform()-0.1 )
+
+graph twoway scatter compliance_level_num_jit t_, c(L) by(_traj_Group) msize(tiny) mcolor(gray) lwidth(vthin) lcolor(gray)
