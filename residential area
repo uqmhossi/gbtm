@@ -1,0 +1,217 @@
+import delimited "C:\Users\s4772747\OneDrive - The University of Queensland\Trajectory Study\LSAC\Merged\K_Supporting_Files\first_imputed.csv", clear
+
+* Encode the residential area string variable to numeric
+encode residential_area , gen(residential_area_num)
+
+* Recode compliance_level_num to ensure it is 0/1
+recode residential_area_num (1=1) (2=0)
+
+* Step 4: Keep only the relevant variables
+keep residential_area_num hicid wave
+
+* Step 5: Reshape the data to wide format
+reshape wide residential_area_num, i(hicid) j(wave)
+
+*Need to generate a set of time variables to pass to traj, just label 2 to 6
+forval i = 2/6 { 
+  generate t_`i' = `i'
+}
+
+* Define groups and degree of polynomials
+local polynom 3
+local groups 4
+local maxnum 0
+forvalues i=2/`groups' {
+    local maxnum = `maxnum' + `polynom'^`i'
+}
+
+* Display maxnum
+display "Max number of polynomial terms: `maxnum'"
+
+* Define traj model (except number of groups and order of polynomials)
+local traj "var(residential_area_num*) indep(t_*) model(logit) min(0) max(10)"
+
+* Define matrix and BIC/AIC values
+matrix a = J(`maxnum', 5, .)
+matrix colnames a = "Groups" "Polynomials" "BIC(N)" "AIC" "BIC(panels)"
+
+local i 1
+local bicn = -10^99
+local bicp = -10^99
+local aic_min = 10^99
+
+* Loop over different polynomial orders
+forvalues a = 1/`polynom' {
+    display "Running traj model for order `a'"
+    quietly traj, `traj' order(`a')
+    display "e(numGroups1): " e(numGroups1)
+    display "e(BIC_N_data): " e(BIC_N_data)
+    display "e(BIC_N_subjects): " e(BIC_N_subjects)
+    display "e(AIC): " e(AIC)
+    matrix a[`i', 1] = e(numGroups1)
+    matrix a[`i', 2] = `a'
+    matrix a[`i', 3] = e(BIC_N_data)
+    matrix a[`i', 4] = e(AIC)
+    matrix a[`i', 5] = e(BIC_N_subjects)
+    if (e(BIC_N_data) > `bicn') {
+        local bicn = e(BIC_N_data)
+        local solutionn = `a'
+        display "New best solutionn: `solutionn'"
+    }
+    if (e(BIC_N_subjects) > `bicp') {
+        local bicp = e(BIC_N_subjects)
+        local solutionp = `a'
+        display "New best solutionp: `solutionp'"
+    }
+    if (e(AIC) < `aic_min') {
+        local aic_min = e(AIC)
+        local solution_aic = `a'
+        display "New best AIC solution: `solution_aic'"
+    }
+    local i = `i' + 1
+    forvalues b = 1/`polynom' {
+        display "Running traj model for order `a' `b'"
+        quietly traj, `traj' order(`a' `b')
+        display "e(numGroups1): " e(numGroups1)
+        display "e(BIC_N_data): " e(BIC_N_data)
+        display "e(BIC_N_subjects): " e(BIC_N_subjects)
+        display "e(AIC): " e(AIC)
+        matrix a[`i', 1] = e(numGroups1)
+        matrix a[`i', 2] = `a' * 10 + `b'
+        matrix a[`i', 3] = e(BIC_N_data)
+        matrix a[`i', 4] = e(AIC)
+        matrix a[`i', 5] = e(BIC_N_subjects)
+        if (e(BIC_N_data) > `bicn') {
+            local bicn = e(BIC_N_data)
+            local solutionn = `a' * 10 + `b'
+            display "New best solutionn: `solutionn'"
+        }
+        if (e(BIC_N_subjects) > `bicp') {
+            local bicp = e(BIC_N_subjects)
+            local solutionp = `a' * 10 + `b'
+            display "New best solutionp: `solutionp'"
+        }
+        if (e(AIC) < `aic_min') {
+            local aic_min = e(AIC)
+            local solution_aic = `a' * 10 + `b'
+            display "New best AIC solution: `solution_aic'"
+        }
+        local i = `i' + 1
+        forvalues c = 1/`polynom' {
+            display "Running traj model for order `a' `b' `c'"
+            quietly traj, `traj' order(`a' `b' `c')
+            display "e(numGroups1): " e(numGroups1)
+            display "e(BIC_N_data): " e(BIC_N_data)
+            display "e(BIC_N_subjects): " e(BIC_N_subjects)
+            display "e(AIC): " e(AIC)
+            matrix a[`i', 1] = e(numGroups1)
+            matrix a[`i', 2] = `a' * 100 + `b' * 10 + `c'
+            matrix a[`i', 3] = e(BIC_N_data)
+            matrix a[`i', 4] = e(AIC)
+            matrix a[`i', 5] = e(BIC_N_subjects)
+            if (e(BIC_N_data) > `bicn') {
+                local bicn = e(BIC_N_data)
+                local solutionn = `a' * 100 + `b' * 10 + `c'
+                display "New best solutionn: `solutionn'"
+            }
+            if (e(BIC_N_subjects) > `bicp') {
+                local bicp = e(BIC_N_subjects)
+                local solutionp = `a' * 100 + `b' * 10 + `c'
+                display "New best solutionp: `solutionp'"
+            }
+            if (e(AIC) < `aic_min') {
+                local aic_min = e(AIC)
+                local solution_aic = `a' * 100 + `b' * 10 + `c'
+                display "New best AIC solution: `solution_aic'"
+            }
+            local i = `i' + 1
+            forvalues d = 1/`polynom' {
+                display "Running traj model for order `a' `b' `c' `d'"
+                quietly traj, `traj' order(`a' `b' `c' `d')
+                display "e(numGroups1): " e(numGroups1)
+                display "e(BIC_N_data): " e(BIC_N_data)
+                display "e(BIC_N_subjects): " e(BIC_N_subjects)
+                display "e(AIC): " e(AIC)
+                matrix a[`i', 1] = e(numGroups1)
+                matrix a[`i', 2] = `a' * 1000 + `b' * 100 + `c' * 10 + `d'
+                matrix a[`i', 3] = e(BIC_N_data)
+                matrix a[`i', 4] = e(AIC)
+                matrix a[`i', 5] = e(BIC_N_subjects)
+                if (e(BIC_N_data) > `bicn') {
+                    local bicn = e(BIC_N_data)
+                    local solutionn = `a' * 1000 + `b' * 100 + `c' * 10 + `d'
+                    display "New best solutionn: `solutionn'"
+                }
+                if (e(BIC_N_subjects) > `bicp') {
+                    local bicp = e(BIC_N_subjects)
+                    local solutionp = `a' * 1000 + `b' * 100 + `c' * 10 + `d'
+                    display "New best solutionp: `solutionp'"
+                }
+                if (e(AIC) < `aic_min') {
+                    local aic_min = e(AIC)
+                    local solution_aic = `a' * 1000 + `b' * 100 + `c' * 10 + `d'
+                    display "New best AIC solution: `solution_aic'"
+                }
+                local i = `i' + 1
+            }
+        }
+    }
+}
+
+matrix list a
+display "Best solution BIC(N): " `solutionn'
+display "Best solution BIC(p): " `solutionp'
+display "Best solution AIC: " `solution_aic'
+                  
+traj, var( residential_area_num*) indep(t_*) model(logit) order(1 1 2 1)
+
+trajplot 
+
+program summary_table_procTraj
+    preserve
+    *updating code to drop missing assigned observations
+    drop if missing(_traj_Group)
+    *now lets look at the average posterior probability
+	gen Mp = 0
+	foreach i of varlist _traj_ProbG* {
+	    replace Mp = `i' if `i' > Mp 
+	}
+    sort _traj_Group
+    *and the odds of correct classification
+    by _traj_Group: gen countG = _N
+    by _traj_Group: egen groupAPP = mean(Mp)
+    by _traj_Group: gen counter = _n
+    gen n = groupAPP/(1 - groupAPP)
+    gen p = countG/ _N
+    gen d = p/(1-p)
+    gen occ = n/d
+    *Estimated proportion for each group
+    scalar c = 0
+    gen TotProb = 0
+    foreach i of varlist _traj_ProbG* {
+       scalar c = c + 1
+       quietly summarize `i'
+       replace TotProb = r(sum)/ _N if _traj_Group == c 
+    }
+	gen d_pp = TotProb/(1 - TotProb)
+	gen occ_pp = n/d_pp
+    *This displays the group number [_traj_~p], 
+    *the count per group (based on the max post prob), [countG]
+    *the average posterior probability for each group, [groupAPP]
+    *the odds of correct classification (based on the max post prob group assignment), [occ] 
+    *the odds of correct classification (based on the weighted post. prob), [occ_pp]
+    *and the observed probability of groups versus the probability [p]
+    *based on the posterior probabilities [TotProb]
+    list _traj_Group countG groupAPP occ occ_pp p TotProb if counter == 1
+    restore
+end
+
+summary_table_procTraj
+
+preserve
+
+reshape long compliance_level_num t_, i( hicid )
+
+gen compliance_level_num_jit = compliance_level_num + ( 0.2*runiform()-0.1 )
+
+graph twoway scatter compliance_level_num_jit t_, c(L) by(_traj_Group) msize(tiny) mcolor(gray) lwidth(vthin) lcolor(gray)
